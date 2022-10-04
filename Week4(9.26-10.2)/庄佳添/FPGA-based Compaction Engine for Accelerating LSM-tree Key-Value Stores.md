@@ -6,7 +6,7 @@
 
 1. 如图1所示，主线程负责处理用户的写读请求，compaction线程负责调度和请求compaction任务。在大量写的工作负载下，LSM-tree中频繁的compaction操作可能导致使得用户数据持久化被阻塞的问题。本文使用FPGA对基于LSM-tree的KV数据库进行compaction操作的加速。使用FGPA作为加速器主要面对如下挑战：1. FPGA上compacation单元的设计使其拥有比CPU更高的性能；2. 针对FPGA特性的流水线设计以充分发挥性能。3.为了与数据库的无缝衔接，软硬件层次之间的接口应被合理设计以防止数据损失；4. 主机端需探究**如何以及何时**使用FPGA加速模块来提高整体性能。
 
-   <img src="C:\Users\Lia0104\AppData\Roaming\Typora\typora-user-images\image-20220926211908754.png" alt="image-20220926211908754" style="zoom:80%;" />
+   <img src="https://raw.githubusercontent.com/Lia0104/BlogImg/main/imgs/202210041612014.png" alt="image-20220926211908754" style="zoom:80%;" />
 
 2. LSM-tree的compaction操作分2类，第1类是将内存中的MemTable转化SSTable，第2类是当Level i的SSTable数达到一定阈值，通过sort-merge操作在level i+1产生新的SSTable。除了level 0外，其余level的SSTable都是有序的。每个SSTable都有1个kv pair组成的index block，其中key记录相邻data block的中间位置，value记录data block的**大小和偏移量**。当完成一个data block的merge后，需要先到index block获得下一个data块的元数据，再完成merge操作。
 
@@ -16,7 +16,7 @@
 
 2. 当Level i SSTable达到阈值后触发merge操作，background threads执行如下操作：1. CPU收集Level i 和 Level i+1中需要被compact的SSTable元数据；2.background线程计算输入的数量，对于Level 0，由于其SSTable中的key存在重叠，因此其输入数量等于Level 0中SSTable的数量。对于其他Level，由于其SSTable都是有序的，因此其参与的多个SSTable可以被连接为1个大的SSTable，其输入数量为1；3. CPU将输入的SSTable读入到1个了连续的内存块中，并为即将生成的新SSTable在内存中分配空间；4. 这些compaction操作的输入数据通过**PCIe总线，以DMA**的方式被传输到FPGA板上的DRAM；5. 输入数据读入到DRAM后硬件compaction引擎开始工作，从DRAM中读取数据；6. 当达到FPGA芯片的存储限制后，compaction操作的部分结果会先被写入DRAM中；7.当compaction操作完成后CPU接受end信号并将新生成的SSTable读入到内存；8. CPU将新生成的SSTable写入硬盘，并完成compaction后的处理工作如记录key的范围。
 
-    ![image-20220926211908754](C:\Users\Lia0104\AppData\Roaming\Typora\typora-user-images\image-20220926211908754.png)
+    ![image-20220926211908754](https://raw.githubusercontent.com/Lia0104/BlogImg/main/imgs/202210041612014.png)
 
 
 ### 3. 硬件实现
@@ -69,7 +69,7 @@ FPGA compaction引擎如Figure2所示，由Decoder、Comparer、Encoder3部分�
 
 1. 由于FPGA资源限制，FPGA最多只允许N路输入，因此当Level 0中的SSTable个数大于N-1，compaction任务由软件SW compaction模块完成。Figure 6展示compaction任务的工作流程。当执行软件compaction时需检查内存中的Immutable MemTable是否需要被flush到硬盘，如需要flush操作则compaction需先暂停等待flush操作完成。而当使用FPGA进行compaction操作时，当compaction任务被下发到FPGA，主机端的flush操作可以并行完成。
 
-   <img src="C:\Users\Lia0104\AppData\Roaming\Typora\typora-user-images\image-20220930085644723.png" alt="image-20220930085644723" style="zoom:67%;" />
+   <img src="https://raw.githubusercontent.com/Lia0104/BlogImg/main/imgs/202210041613492.png" alt="image-20220930085644723" style="zoom:67%;" />
 
 2. FPGA与内存的输入输出接口的数据应该被统一，考虑到index块和data块在Encoder和Decoder中被分开处理，因此data块和index块应被存放在内存的不同位置，如figure 7所示。Index块可以连续存放，由于data block以Win-byte/cycle的速度读取，因此读入的data block需按Win-byte的偏移量对齐，相同的输出的data block按Wout-byte的偏移量对齐。
 
