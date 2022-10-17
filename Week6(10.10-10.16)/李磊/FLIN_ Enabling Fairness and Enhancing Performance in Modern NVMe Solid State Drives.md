@@ -24,12 +24,17 @@ MQ-SSD的一个I/O请求的处理流程：
 当并发服务多个I/O流时，一个流的请求行为可能会对另一个流的请求产生负面影响。
 一个流的slowdown计算如下：
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/6f8294bd0d9546e9b91887e3c5f2a81f.png)
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/bebab539527843ceba910129ec756eeb.png)
+
 S越小越好。
 将公平性(F)定义为系统中任何流所经历的最大和最小减速的比值:
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/743e62c7eb154df09939544a607c6c90.png)
+
 F越大越公平。
 对MQ-SSD做了大量实验，下图是高强度的io流对一个中等强度的io流的影响，黑色是中等强度的io流，红色是高强度的io流。可以看到中等强度的io流slowdown明显减小了，且缺乏公平性
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/25795d0c87ec47fea945afd61f7c4896.png)
 
 ### 1.3  对mq - ssd的不公平性干扰源的分析
@@ -56,6 +61,7 @@ F越大越公平。
 ![算法流程](https://img-blog.csdnimg.cn/3b62c6c40bcb42a8b6669bf1a014a17d.png)
 
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/6f73eb185c58444ebe82366043181e7c.png)
+
 首先根据流的强度大致确定位置，然后再根据公平性调整具体的位置。
 关于具体怎么确定位置参考论文5.1, 5.2, 5.3。
 - 2.Priority-Aware Queue Arbitration
@@ -64,7 +70,9 @@ F越大越公平。
 - 3.Wait-Balancing Transaction Selection
 最小化由于读写比率和并发运行流的垃圾收集需求而产生的干扰。
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/94b75006e9d148b0b94cf678161db5f4.png)
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/c2640766442a453d82790a00184e125c.png)
+
 首先确定读写槽的proportional wait time ，然后谁大那么先将谁分配。
 >读的优先级高那么直接分配，如果写的优先级高，则先得考虑垃圾回收。如果空闲页数量低于阈值，则执行垃圾回收，垃圾回收会伴随一对读写，因为回收的页可能有有效数据。一旦回收完成，立即分配写。
 
@@ -73,13 +81,18 @@ F越大越公平。
 ## 3. 评估
 ### 3.1 实验配置
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/12a3230cf37d4b70bab2f583904dbcaf.png)
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/eff758ff89f342c8aec6d7869d7d0c5f.png)
+
 具体参数配置见论文第6大节
 
 ### 3.2 实验结果
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/6f7a8a1ed6b14135b5b6de9debdb5f63.png)
+
 与最先进的设备级调度器相比，FLIN的公平性控制机制显著提高了weighted speedup（WS），这是MQ-SSD总体性能的一个重要指标。
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/7e0f71601bf447869b6a5b49c84a5bdf.png)
+
 ## 4. 总结
 论文提出了FLIN，这是一种用于现代多队列ssd (mq - ssd)的轻量级事务调度器，它在并发运行的流之间提供公平性。FLIN使用三阶段设计极大程度上减少了实际mq - ssd中存在的所有四种主要干扰源的影响，同时执行由主机分配的应用程序级优先级。论文广泛的评估表明，与最先进的设备级调度器相比，FLIN有效地提高了公平性和系统性能。
 
