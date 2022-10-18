@@ -1,6 +1,6 @@
 # NASCENT: Near-Storage Acceleration of Database Sort on SmartSSD
 
-本文来自UCSD和三星的合作，作者是UCSD的La Jolla，发表在FPGA‘21。本文提出了一种用于数据库排序的近存储加速器，NASCENT。它使用三星SmartSSD，一个带有板载FPGA芯片的NVME闪存驱动器，使用双调排序算法对数据库排序。随着存储设备数量的增加，NASCENT设备的性能和能源效率都在提高。在12块SmartSSD硬盘的情况下，与FPGA (CPU)基线相比，NASCENT的速度达到7.6× (147.2×)，能耗低达5.6× (131.4×)。
+本文来自UCSD和三星的合作，作者是UCSD的Sahand Salamat，发表在FPGA‘21。本文提出了一种用于数据库排序的近存储加速器，NASCENT。它使用三星SmartSSD，一个带有板载FPGA芯片的NVME闪存驱动器，使用双调排序算法对数据库排序。随着存储设备数量的增加，NASCENT设备的性能和能源效率都在提高。在12块SmartSSD硬盘的情况下，与FPGA (CPU)基线相比，NASCENT的速度达到7.6× (147.2×)，能耗低达5.6× (131.4×)。
 
 ## Introduction
 
