@@ -88,14 +88,7 @@
 - 实现适用于大数据的通用ISC处理引擎
 - ISC
 
-## 其他
-
-**DeepStore: In-Storage Acceleration for Intelligent Queries**
-
-- MICRO'19
-
-- 一种用于DNN智能查询的存储加速器架构
-- 模拟器
+## 图相关
 
 **GraFboost: using accelerated flash storage for external graph analytics**
 
@@ -108,6 +101,27 @@
 - FAST'22
 - 加速GNN的推理，支持用户实现GNN算法
 - NSC
+
+**ExtraV: boosting graph processing near storage with a coherent accelerator**
+
+- VLDB'17
+- 一个用于近存储图处理的框架
+- ADM-PCIE-KU3,一个包含FPGA和SSD的开发板。
+
+## 其他
+
+**Analyzing and Modeling In-Storage Computing Workloads On EISC — An FPGA-Based System-Level Emulation Platform**
+
+- ICCAD'19
+- 使用仿真系统建立了ISC受益的分析模型
+- EISC，开源ISC仿真系统
+
+**DeepStore: In-Storage Acceleration for Intelligent Queries**
+
+- MICRO'19
+
+- 一种用于DNN智能查询的存储加速器架构
+- 模拟器
 
 **IceClave: A Trusted Execution Environment for In-Storage Computing**
 
