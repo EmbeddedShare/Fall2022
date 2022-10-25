@@ -2,7 +2,7 @@
 
 - **In-Storage Computing：** 在存储设备内完成数据加速处理。
 - **Near-Storage Computing：** NSC 技术通常在存储设备（例如 SSD）和主机 CPU 之间的路径上插入一个片上系统 (SoC) 或 FPGA，以加速数据处理，从而减轻主机 CPU 的负担。
-- **In-Memory Computing：**在内存上完成数据加速处理。
+- **In-Memory Computing：** 在内存上完成数据加速处理。
 
 ## 数据库相关
 
