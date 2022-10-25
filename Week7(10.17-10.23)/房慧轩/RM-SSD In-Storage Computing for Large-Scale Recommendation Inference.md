@@ -1,4 +1,11 @@
 # **RM-SSD: In-Storage Computing for Large-Scale Recommendation Inference**
+
+Author：Xuan Sun,Hu Wan,Qiao Li,Chia-Lin Yang,Tei-Wei Kuo and Chun Jason Xue
+
+Department of Computer Science, City University of Hong Kong,
+Department of Computer Science and Information Engineering, National Taiwan University,
+NTU High Performance and Scientific Computing Center, National Taiwan University
+
 为了满足推荐系统的严格服务要求，系统的整套嵌入组件都被装载到内存中。但由于产品级的推荐系统的模型和数据集的规模逐渐增大，嵌入组件的大小逐渐接近内存的容量上限，这种有限的空间限制了算法，从而限制了推荐系统的发展。之前的研究致力于embedding-dominated的模型，而这篇文章提出把整个推荐系统装载到带有存储设备内计算能力的SSD中，利用FPGA同时加速embedding-dominated和MLP-dominated的模型。最终相比于基础SSD和先进的方式分别实现了20-100倍和1.5-15倍的吞吐量提升。
 
 ## **INTRODUCTION**
