@@ -14,8 +14,8 @@
 1. InfluxDB 的时序数据存储引擎--Time-Structured Merge (TSM) Tree，衍生自 LSM-Tree，在写性能上存在写停顿、写放大等痛点。
 - 写放大：存储引擎为了保证多个SSTable 之间关键字的有序性而进行大量数据的归并重写 (以下简称 “合并”)，使得磁盘数据的写入量多于用户提交的写入量。
 - 写停顿：由于后台任务所调度的大量 SSTable 的合并占据了磁盘带宽，导致 Immutable Memtable 无法在短时间内完成刷盘，新的 Memtable 亦无法及时创建，使得用户提交写请求后出现短时间内无法写入的现象。
-2. InfluxDB 已经拥有的分布式集群方案中，元节点集群实现了分布式 CAP (一致性、可用性、分区容错性) 中的 CP。数据节点集群实现了 AP，可用性优先，不保证数据的强一致。
-![在这里插入图片描述](https://img-blog.csdnimg.cn/9d97a6190e8f4a5a85a4146d9d21c2e4.png)
+2. InfluxDB 已经拥有的分布式集群方案中，元节点集群实现了分布式 CAP (一致性、可用性、分区容错性) 中的 CP。数据节点集群实现了 AP，可用性优先，不保证数据的强一致。  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/9d97a6190e8f4a5a85a4146d9d21c2e4.png)  
 但数据节点集群的一致性级别及其 “无主多写” 的方案并不能适应业界对于分布式数据库的高可靠性要求。
 
 ## 3. 系统设计
@@ -29,21 +29,21 @@
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/aa7b830a91584803a66a62b406695d4c.png)
 定义两个数据结构来记录每个数据源下数据的时戳范围 (即区间的左右端点)：seriesKey2MinTime
 和 seriesKey2MaxTime。
-在每次写入成功后更新 seriesKey2MaxTime，对于时戳下界 seriesKey2MinTime，在 Memtable 转变为 ImmutableMemtable 并刷盘后，新的 Memtable 被创建出来，此时用当前 seriesKey2MaxTime覆盖 seriesKey2MinTime 即可。图4-2描述了时序数据在 L0 的写入流程。
-![在这里插入图片描述](https://img-blog.csdnimg.cn/bff498eecd9647a483e6d2902ea6774e.png)
+在每次写入成功后更新 seriesKey2MaxTime，对于时戳下界 seriesKey2MinTime，在 Memtable 转变为 ImmutableMemtable 并刷盘后，新的 Memtable 被创建出来，此时用当前 seriesKey2MaxTime覆盖 seriesKey2MinTime 即可。图4-2描述了时序数据在 L0 的写入流程。  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/bff498eecd9647a483e6d2902ea6774e.png)  
 1. 乱序表的持久化：
 当 Memtable 转变成 Immutable Memtable 之后，一个新的 WAL 会被创建出来，随即将乱序表刷到这个 WAL 的开头，后续的写请求到来时相应的日志则继续往后追加。此外，还需要将 Memtable 里的 seriesKey2MinTime 和 seriesKey2MaxTime持久化，保证系统重启后相关逻辑不出错
-WAL 日志项的写入流程如图4-3所示
-![在这里插入图片描述](https://img-blog.csdnimg.cn/b38ac3d23a7d4142a1ddb692c99aa7ca.png)
+WAL 日志项的写入流程如图4-3所示  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/b38ac3d23a7d4142a1ddb692c99aa7ca.png)  
 2. 乱序表的合并
 L1 → L2 的 TSM 层间拷贝其实是在基于对同数据源时序数据的单调递增约束下的弱化的 TSM 合并操作。当 L1 的 TSM 文件个数达到阈值从而需要刷到 L2 时，将当前乱序表里的数据点和 WAL 里属于上一个乱序表内的数据点合并。
-乱序表合并的流程可大致用算法4-2描述。
-![在这里插入图片描述](https://img-blog.csdnimg.cn/89dbfbbf3bdc4a1ea8a561845335ea5d.png)
+乱序表合并的流程可大致用算法4-2描述。  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/89dbfbbf3bdc4a1ea8a561845335ea5d.png)  
 
 #### 3.3 分布式架构设计
-系统架构如图所示，主要分为计算层和存储层。计算层由两个 InfluxDB 数据节点集群和一个元节点集群构成，均使用 Raft 算法保证集群内节点数据的一致性，并提供容错能力。
-[Raft算法简介](https://cloud.tencent.com/developer/article/1101009#:~:text=Raft%E6%98%AF%E4%B8%8D%E4%BE%9D%E8%B5%96,eader%E7%BB%93%E6%9D%9F%E3%80%82)
-![在这里插入图片描述](https://img-blog.csdnimg.cn/59760fd37c6d42359c28926f37b50a29.png)
+系统架构如图所示，主要分为计算层和存储层。计算层由两个 InfluxDB 数据节点集群和一个元节点集群构成，均使用 Raft 算法保证集群内节点数据的一致性，并提供容错能力。  
+[Raft算法简介](https://cloud.tencent.com/developer/article/1101009#:~:text=Raft%E6%98%AF%E4%B8%8D%E4%BE%9D%E8%B5%96,eader%E7%BB%93%E6%9D%9F%E3%80%82)  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/59760fd37c6d42359c28926f37b50a29.png)  
 
 组成数据节点集群的 InfluxDB 存储引擎经过改造，将原本的 4 层 TSM 合并操作弱化为 2 层。L2 TSM 作为冷数据而被存储到远端存储池里的 StoreNode 上面。远端存储池里的 StoreNode 的状态信息由一个同样运行 Raft 算法的 master 集群进行维护。
 整个系统通过 influx proxy 将读写接口暴露给用户。influx proxy 提供 “负载均衡、分库分表” 的功能，将用户的读写请求根据 database 和 measurement 转发给相应的 InfluxDB 数据节点集群。
@@ -63,17 +63,17 @@ L1 → L2 的 TSM 层间拷贝其实是在基于对同数据源时序数据的�
 
 ###### 计算层
 1. 元节点
-元节点集群使用 Raft 保证一致性。针对元数据的读写请求都会在元节点集群内进行线性一致性排序。raftmeta.MetaService 实现了元节点的核心逻辑，类图如下。
-![在这里插入图片描述](https://img-blog.csdnimg.cn/cf446a23ce8d41c1a935b69260c30b2c.png)
+元节点集群使用 Raft 保证一致性。针对元数据的读写请求都会在元节点集群内进行线性一致性排序。raftmeta.MetaService 实现了元节点的核心逻辑，类图如下。  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/cf446a23ce8d41c1a935b69260c30b2c.png)  
 raftmeta.MetaService 接收到来自 meta.Client 的元数据读写请求后，会将请求参数封装为 Raft 日志项，通过 ProposalAndWait() 将日志项打到 Raft 层进行同步。当携带请求参数的 Raft 日志项在大多数节点之间达成一致后确认提交，ProposalAndWait() 的阻塞等待被解除，这也意味着完成了一
 次元数据的读写操作。
 
 2. 数据节点 
-数据节点依靠 coordinator.ClusterMetaClient 向元节点读写元数据，如图5-4所示。
-![在这里插入图片描述](https://img-blog.csdnimg.cn/0f70a913bf294c37bc968e7de3715cd2.png)
+数据节点依靠 coordinator.ClusterMetaClient 向元节点读写元数据，如图5-4所示。  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/0f70a913bf294c37bc968e7de3715cd2.png)  
 3. Raft 模块
-Raft 模块的流程以 (*RaftNode).ProposalAndWait() 为起点，主要步骤如图5-5所示，
-![在这里插入图片描述](https://img-blog.csdnimg.cn/996146f9485a47d1a6cd8c670b698c53.png)
+Raft 模块的流程以 (*RaftNode).ProposalAndWait() 为起点，主要步骤如图5-5所示，  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/996146f9485a47d1a6cd8c670b698c53.png)  
 ①将 Raft 日志 (即一条提议) 打到 Raft状态机，按照 Raft 算法流程完成日志的同步和提交，
 ②等待提议被应用到集群内大多数节点上。
 ③Raft 状态机将已提交的日志项通过一个通道传递给 (*RaftNode).processApplyCh，这里面就包含之前那条提议。
@@ -83,41 +83,41 @@ Raft 模块的流程以 (*RaftNode).ProposalAndWait() 为起点，主要步骤�
 
 ###### 存储层
 1. StoreNode内部结构
-StoreNode 内部实现如图5-11所示，由一个 slave 进程和一个 InfluxDB 服务端进程组成。slave 负责接收计算层的数据节点发送过来的 L2 TSM 并将其导入到InfluxDB。
-![在这里插入图片描述](https://img-blog.csdnimg.cn/3a9ad60e647d4495b3af2ed976a66fcf.png)
+StoreNode 内部实现如图5-11所示，由一个 slave 进程和一个 InfluxDB 服务端进程组成。slave 负责接收计算层的数据节点发送过来的 L2 TSM 并将其导入到InfluxDB。  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/3a9ad60e647d4495b3af2ed976a66fcf.png)  
 slave端的四条协程：
 - 周期性地向 master 发送心跳包
 - 在 TCP 端口上监听，接收来自计算层数据节点或其他同级 slave 的L2 TSM文件
 - 在 TCP 端口上监听，接收 master 发送的文件拷贝命令
 - 将 L2 TSM 文件导入到与 slave 绑定的 InfluxDB 服务端，以便计算层数据节点完成远程查询。
 
-为了保证存储层的高可靠和高可用性，需要使 StoreNode 具备良好的容错能力。定义两类 StoreNode：active StoreNode 和 backup StoreNode。active StoreNode指的是被分配出去承担了 L2 TSM 存储任务的 StoreNode，而未被分配出去的是 backup StoreNode，作为冗余后备。如图5-12所示。
-![在这里插入图片描述](https://img-blog.csdnimg.cn/493bbc90f659441aaba4b8705af28216.png)
+为了保证存储层的高可靠和高可用性，需要使 StoreNode 具备良好的容错能力。定义两类 StoreNode：active StoreNode 和 backup StoreNode。active StoreNode指的是被分配出去承担了 L2 TSM 存储任务的 StoreNode，而未被分配出去的是 backup StoreNode，作为冗余后备。如图5-12所示。  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/493bbc90f659441aaba4b8705af28216.png)  
 
 2.  Master集群
 Master 集群利用 Raft 提供容错能力，并利用 Raft 将任意节点上接收到的StoreNode 心跳包在集群内同步。Master 作为存储池的管理者，需要提供两个 RPC （远程程序调用）供计算层的数据节点调用：
-- AssignSlave 分配一个存储节点给数据节点作为镜像，用于保存 L2 TSM 文件。请求参数与返回值定义如下：
-![在这里插入图片描述](https://img-blog.csdnimg.cn/0ebe8201d8d940348a61ce94cc6b73d7.png)
+- AssignSlave 分配一个存储节点给数据节点作为镜像，用于保存 L2 TSM 文件。请求参数与返回值定义如下：  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/0ebe8201d8d940348a61ce94cc6b73d7.png)  
 
-- GetRemoteNodeAddr 数据节点执行远程查询时获取镜像存储节点的网络地址。请求参数与返回值定义如下：
-![在这里插入图片描述](https://img-blog.csdnimg.cn/8fbf422c9d474443849cfd250f8dac23.png)
+- GetRemoteNodeAddr 数据节点执行远程查询时获取镜像存储节点的网络地址。请求参数与返回值定义如下：  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/8fbf422c9d474443849cfd250f8dac23.png)  
 所以，Master 的主要功能包括：（1）接受 slave 的心跳包，更新 slave 的状态信息；（2）根据心跳超时发现宕机的 slave，调度后备 slave 替换之；（3）为计算层的数据节点提供 RPC 接口。
 
-## 4. 实验
-![在这里插入图片描述](https://img-blog.csdnimg.cn/e01de0d9b9bf49d0b5b2753aece46b1b.png)
+## 4. 实验  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/e01de0d9b9bf49d0b5b2753aece46b1b.png)  
 其中，Kapcitor 和 Chronograf 是 InfluxDB 生态下的可视化数据分析工具，用于在写入测试中统计 InfluxDB 服务端的吞吐量。
-1. 乱序数据写入测试
-![在这里插入图片描述](https://img-blog.csdnimg.cn/b3d43f6c6efb41cebce4f2347525381c.png)
-四组测试数据在写入过程中的 Δ-InfluxDB 的吞吐量曲线如图6-2所示，由于乱序数据占比很低，所以吞吐量曲线较为平稳，没有出现剧烈的抖动。
-![在这里插入图片描述](https://img-blog.csdnimg.cn/85001b3bf9b9493aa4cc977f0b081eaa.png)
-最后统计四组测试下最终写入的数据量以及被丢弃的乱序记录条数及其在乱序记录中所占比例，如表6-3所示。显然，当存在乱序数据时 Δ-InfluxDB 不能保证将其全部写入，少量乱序数据因其时戳落后于 L1 的全体 TSM 文件，所以被丢弃了。
-![在这里插入图片描述](https://img-blog.csdnimg.cn/f5cf65a4962e41e2acc9d5e74823b5e0.png)
+1. 乱序数据写入测试  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/b3d43f6c6efb41cebce4f2347525381c.png)  
+四组测试数据在写入过程中的 Δ-InfluxDB 的吞吐量曲线如图6-2所示，由于乱序数据占比很低，所以吞吐量曲线较为平稳，没有出现剧烈的抖动。  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/85001b3bf9b9493aa4cc977f0b081eaa.png)  
+最后统计四组测试下最终写入的数据量以及被丢弃的乱序记录条数及其在乱序记录中所占比例，如表6-3所示。显然，当存在乱序数据时 Δ-InfluxDB 不能保证将其全部写入，少量乱序数据因其时戳落后于 L1 的全体 TSM 文件，所以被丢弃了。  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/f5cf65a4962e41e2acc9d5e74823b5e0.png)  
 
 2. 压力写入测试
-图6-3(a)和图6-3(b)分别对应原生 InfluxDB 和 Δ-InfluxDB。图6-3(a)中那些吞吐量曲线几乎将至 0 的位置就是因为发生了写停顿。Δ-InfluxDB 极大地弱化了 TSM 的合并操作，所以图6-3(b)的吞吐量曲线虽然存在轻微抖动但未出现降至 0 的写停顿情形。
-![在这里插入图片描述](https://img-blog.csdnimg.cn/5b7fad2f8786463e9ac3591fb7b96ddb.png)
-在进行写入测试过程中监控 InfluxDB 服务端进程的内存占用，如图6-4所示
-![在这里插入图片描述](https://img-blog.csdnimg.cn/c808a59bd04d4eef8bde16effb8f90ad.png)
+图6-3(a)和图6-3(b)分别对应原生 InfluxDB 和 Δ-InfluxDB。图6-3(a)中那些吞吐量曲线几乎将至 0 的位置就是因为发生了写停顿。Δ-InfluxDB 极大地弱化了 TSM 的合并操作，所以图6-3(b)的吞吐量曲线虽然存在轻微抖动但未出现降至 0 的写停顿情形。  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/5b7fad2f8786463e9ac3591fb7b96ddb.png)  
+在进行写入测试过程中监控 InfluxDB 服务端进程的内存占用，如图6-4所示  
+![在这里插入图片描述](https://img-blog.csdnimg.cn/c808a59bd04d4eef8bde16effb8f90ad.png)  
 Δ-InfluxDB 因为弱化了 TSM 合并，而 L1 → L2 的 TSM 文件拷贝并不会成为内存瓶颈，所以全程未出现内存高峰。
 
 3. 分布式系统功能测试
